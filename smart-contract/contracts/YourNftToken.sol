@@ -26,6 +26,21 @@ contract YourNftToken is ERC721A, Ownable, ReentrancyGuard {
   bool public whitelistMintEnabled = false;
   bool public revealed = false;
 
+  // Setting the seedPhrase will encode the tokenId into a hex json filename
+  // when retrieving the tokenUri
+  // for example tokenId 1 will be 
+  // 1_0x0E1D24F39C70EAB0F648C3CF4D90CBB9B3166CB04610C77150D94CCEB44C124A.json
+  //
+  // NOTE!!!!
+  // Make sure you have the same seedPrase when you generated the json metadata
+  // from the art engine
+  //
+  //
+  // When the seedPrase is empty string,
+  // the tokenUri will be just as normal
+  // so tokenId 1 would be 1.json
+  string private seedPhrase = '';
+
   constructor(
     string memory _tokenName,
     string memory _tokenSymbol,
@@ -111,10 +126,51 @@ contract YourNftToken is ERC721A, Ownable, ReentrancyGuard {
       return hiddenMetadataUri;
     }
 
+    string memory metadataJsonFilename = '';
+    if (keccak256(abi.encodePacked(seedPhrase)) == keccak256(abi.encodePacked(''))) {
+      metadataJsonFilename = _tokenId.toString();
+    } else {   
+      metadataJsonFilename = toHex(keccak256(abi.encodePacked(_tokenId.toString(),seedPhrase)));
+      metadataJsonFilename = string(abi.encodePacked(_tokenId.toString() , '_' , metadataJsonFilename));
+    }
+
     string memory currentBaseURI = _baseURI();
     return bytes(currentBaseURI).length > 0
-        ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), uriSuffix))
+        ? string(abi.encodePacked(currentBaseURI, metadataJsonFilename , uriSuffix))
         : '';
+  }
+
+function toHex(bytes32 data) public pure returns (string memory) {
+  return string(abi.encodePacked("0x", toHex16(bytes16(data)), toHex16(bytes16(data << 128))));
+}
+
+function toHex16(bytes16 data) internal pure returns (bytes32 result) {
+  result =
+    (bytes32(data) & 0xFFFFFFFFFFFFFFFF000000000000000000000000000000000000000000000000) |
+    ((bytes32(data) & 0x0000000000000000FFFFFFFFFFFFFFFF00000000000000000000000000000000) >> 64);
+  result =
+    (result & 0xFFFFFFFF000000000000000000000000FFFFFFFF000000000000000000000000) |
+    ((result & 0x00000000FFFFFFFF000000000000000000000000FFFFFFFF0000000000000000) >> 32);
+  result =
+    (result & 0xFFFF000000000000FFFF000000000000FFFF000000000000FFFF000000000000) |
+    ((result & 0x0000FFFF000000000000FFFF000000000000FFFF000000000000FFFF00000000) >> 16);
+  result =
+    (result & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000) |
+    ((result & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) >> 8);
+  result =
+    ((result & 0xF000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000) >> 4) |
+    ((result & 0x0F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F00) >> 8);
+  result = bytes32(
+    0x3030303030303030303030303030303030303030303030303030303030303030 +
+      uint256(result) +
+      (((uint256(result) + 0x0606060606060606060606060606060606060606060606060606060606060606) >> 4) &
+        0x0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F) *
+      7
+  );
+}
+
+  function setSeedPhrase(string memory _seedPhrase) public onlyOwner {
+    seedPhrase = _seedPhrase;
   }
 
   function setRevealed(bool _state) public onlyOwner {
