@@ -21,4 +21,5 @@ export default interface CollectionConfigInterface {
   whitelistAddresses: string[];
   marketplaceIdentifier: string;
   marketplaceConfig: MarketplaceConfigInterface,
+  seedPhrase: string
 };
